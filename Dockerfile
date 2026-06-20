@@ -1,5 +1,5 @@
 # Use the latest stable Ubuntu image
-FROM nvidia/cuda:13.1.2-cudnn-devel-ubuntu24.04
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 
 # Avoid prompts from apt during installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -40,6 +40,22 @@ RUN sed -i 's/#TCPKeepAlive yes/TCPKeepAlive yes/' /etc/ssh/sshd_config
 
 # Expose port 22 inside the container
 EXPOSE 22
+
+# BEGIN GROMACS SECTION
+ENV CUDA_HOME=/usr/local/cuda
+ENV PATH=${CUDA_HOME}/bin:${PATH}
+ENV LD_LIBRARY_PATH=${CUDA_HOME}/lib64:${LD_LIBRARY_PATH}
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        curl \
+        ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
+
+RUN ln -sf /usr/local/cuda-12.8 /usr/local/cuda && \
+    mkdir -p /app && chown -R devuser:devuser /app
 
 
 # Start the SSH daemon in the foreground
