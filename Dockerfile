@@ -13,20 +13,34 @@ RUN apt-get update && apt-get install -y \
 # Required for the SSH daemon to run properly
 RUN mkdir /var/run/sshd
 
-# Create a non-root user 'sshuser' with password 'password123'
-RUN useradd -m -s /bin/bash sshuser && \
-    echo 'sshuser:password123' | chpasswd && \
-    adduser sshuser sudo
+# Create a non-root user 'devuser' with sudo
+RUN useradd -m -s /bin/bash devuser && \
+    adduser devuser sudo
 
-# (Optional) Allow root login via password if needed
-# RUN echo 'root:rootpassword' | chpasswd
-# RUN sed -i 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+# Set up the .ssh directory with correct permissions
+RUN mkdir -p /home/devuser/.ssh && \
+    chmod 700 /home/devuser/.ssh
+
+# COPY your host's public key into the container's authorized_keys file
+# Replace 'id_container.pub' with your actual public key filename if different
+COPY gromacs_key.pub /home/devuser/.ssh/authorized_keys
+
+# Fix ownership and permissions for the authorized_keys file
+RUN chown -R devuser:devuser /home/devuser/.ssh && \
+    chmod 600 /home/devuser/.ssh/authorized_keys
+
+# Harden SSH configuration (Disable password login, enforce key login)
+RUN sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && \
+    echo "PasswordAuthentication no" >> /etc/ssh/sshd_config
+
 
 # Set up SSH environment variables to prevent connection drops
 RUN sed -i 's/#TCPKeepAlive yes/TCPKeepAlive yes/' /etc/ssh/sshd_config
 
 # Expose port 22 inside the container
 EXPOSE 22
+
 
 # Start the SSH daemon in the foreground
 CMD ["/usr/sbin/sshd", "-D"]
