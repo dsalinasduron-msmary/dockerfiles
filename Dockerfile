@@ -1,5 +1,5 @@
-# Use the latest stable Ubuntu image
-FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
+# CUDA 12.1+ is recommended. cmake 3.28 required [default on ubuntu 24]
+FROM nvidia/cuda:12.8.2-devel-ubuntu24.04
 
 # Avoid prompts from apt during installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -16,6 +16,7 @@ RUN mkdir /var/run/sshd
 # Create a non-root user 'devuser' with sudo
 RUN useradd -m -s /bin/bash devuser && \
     adduser devuser sudo
+RUN echo 'devuser ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
 
 # Set up the .ssh directory with correct permissions
 RUN mkdir -p /home/devuser/.ssh && \
@@ -57,7 +58,22 @@ RUN apt-get update && \
 RUN ln -sf /usr/local/cuda-12.8 /usr/local/cuda && \
     mkdir -p /app && chown -R devuser:devuser /app
 
+# Switch to the new user for all subsequent instructions
+USER devuser
+WORKDIR /app
+COPY gromacs-2026.2.tar.gz gromacs-2026.2.tar.gz
+RUN tar xfz gromacs-2026.2.tar.gz
+RUN cd gromacs-2026.2
+RUN mkdir build
+RUN cd build
+RUN cmake /app/gromacs-2026.2 -DGMX_BUILD_OWN_FFTW=ON -DREGRESSIONTEST_DOWNLOAD=ON -DGMX_GPU=CUDA
+RUN make
+RUN make check
+RUN sudo make install
+
+ENV PATH="${PATH}:/app/bin"
+
 
 # Start the SSH daemon in the foreground
-CMD ["/usr/sbin/sshd", "-D"]
+CMD ["sudo","/usr/sbin/sshd", "-D"]
 
