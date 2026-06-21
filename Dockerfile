@@ -71,9 +71,7 @@ RUN make
 RUN make check
 RUN sudo make install
 
-ENV PATH="${PATH}:/app/bin"
-
+RUN echo "PATH=$PATH:/app/bin" >> /home/devuser/.bashrc
 
 # Start the SSH daemon in the foreground
 CMD ["sudo","/usr/sbin/sshd", "-D"]
-
